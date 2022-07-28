@@ -1,0 +1,70 @@
+
+from google.colab import files
+segmentation = files.upload()
+
+
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.preprocessing import StandardScaler
+import seaborn as sns
+import pandas as pd
+import numpy as np
+from sklearn import cluster, metrics
+from sklearn.cluster import DBSCAN
+
+
+
+X = pd.read_csv('segmentation data.csv')
+X.head
+
+
+X.drop(columns=["ID"], axis=1, inplace=True)
+
+X.head()
+
+
+
+
+#One-hot encoding
+categorical_cols = ['Sex','Marital status', 'Education', 'Occupation', 'Settlement size']
+
+X = pd.get_dummies(X, columns = categorical_cols)
+
+#Standard scaler
+ss = StandardScaler()
+
+X[['Age', 'Income']] = ss.fit_transform(X[['Age', 'Income']])
+
+X.head()
+
+
+
+
+# labels_ are assigned to every observation based on the cluster the observation is assigned to
+
+
+db = DBSCAN().fit(X)
+labels = pd.DataFrame(db.labels_)
+
+labels.rename(columns={0: "cluster"}, inplace=True)
+
+X_orig = pd.read_csv('segmentation data.csv')
+graph = pd.concat([X_orig,labels], axis=1)
+
+sns.lmplot('Age','Income', data=graph, hue='cluster', fit_reg=False)
+
+
+------
+
+
+db = DBSCAN(eps=1.435, min_samples=5).fit(X)
+labels = pd.DataFrame(db.labels_)
+
+labels.rename(columns={0: "cluster"}, inplace=True)
+
+X_orig = pd.read_csv('segmentation data.csv')
+graph = pd.concat([X_orig,labels], axis=1)
+
+sns.lmplot('Age','Income', data=graph, hue='cluster', fit_reg=False)
