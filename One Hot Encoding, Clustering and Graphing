@@ -1,0 +1,88 @@
+from google.colab import files
+segmentation = files.upload()
+
+
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.preprocessing import StandardScaler
+import seaborn as sns
+import pandas as pd
+import numpy as np
+from sklearn import cluster, metrics
+from sklearn import datasets
+
+
+X = pd.read_csv('segmentation data.csv')
+X.head()
+
+
+X.drop(columns=["ID"], axis=1, inplace=True)
+
+X.head()
+
+
+
+#One-hot encoding
+categorical_cols = ['Sex','Marital status', 'Education', 'Occupation', 'Settlement size']
+
+X = pd.get_dummies(X, columns = categorical_cols)
+
+#Standard scaler
+ss = StandardScaler()
+
+X[['Age', 'Income']] = ss.fit_transform(X[['Age', 'Income']])
+
+X.head()
+
+
+kmeans = cluster.KMeans()
+kmeans.fit(X)
+
+
+
+# labels_ are assigned to every observation based on the cluster the observation is assigned to
+labels = pd.DataFrame(kmeans.labels_)
+
+# cluster_centers_ give coordinated of the cluster centroid across every feature
+labels.rename(columns={0: "cluster"}, inplace=True)
+
+X_orig = pd.read_csv('segmentation data.csv')
+graph = pd.concat([X_orig,labels], axis=1)
+
+sns.lmplot('Age','Income', data=graph, hue='cluster', fit_reg=False)
+
+
+
+
+
+# get the interia_ attribute for K-means fit with increasing k
+inertias = []
+for k in [2,3,4,5,6,7,8]:
+    km = cluster.KMeans(n_clusters=k)
+    km.fit(X)
+    inertias.append(km.inertia_)
+    
+# plot inertia for various k
+fig, ax = plt.subplots(figsize=(10,8))
+ax.plot([2,3,4,5,6,7,8], inertias, c='grey', alpha=0.5)
+ax.scatter([2,3,4,5,6,7,8], inertias)
+ax.set_xlabel('K')
+ax.set_ylabel('Inertia')
+plt.show()
+
+
+
+s_scores = []
+for k in [2,3,4,5,6,7,8]:
+    km = cluster.KMeans(n_clusters=k)
+    km.fit(X)
+    s_scores.append(metrics.silhouette_score(X, km.labels_, metric='euclidean'))
+    
+fig, ax = plt.subplots(figsize=(8,5))
+ax.plot([2,3,4,5,6,7,8], s_scores, c='grey', alpha=0.5)
+ax.scatter([2,3,4,5,6,7,8], s_scores)
+ax.set_xlabel('K')
+ax.set_ylabel('Silhouette Score')
+plt.show()
