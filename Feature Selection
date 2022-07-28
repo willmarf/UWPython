@@ -1,0 +1,79 @@
+from google.colab import files
+cancer_full = files.upload()
+------------------------------------------------------------------------------------------------------------------------
+
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import Pipeline
+from sklearn.model_selection import cross_val_score
+from sklearn.feature_selection import RFE
+import numpy as np
+
+------------------------------------------------------------------------------------------------------------------------
+
+cancer_full = pd.read_csv('cancer_full.csv')
+
+cancer_full.loc[cancer_full['diagnosis'] == 'M', 'cancer_present'] = 1
+cancer_full.loc[cancer_full['diagnosis'] == 'B', 'cancer_present'] = 0
+
+y = cancer_full['cancer_present']
+X = cancer_full.drop(['id','diagnosis','cancer_present'], axis=1)
+------------------------------------------------------------------------------------------------------------------------
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
+------------------------------------------------------------------------------------------------------------------------
+
+pipe     = Pipeline([('scaler', StandardScaler()), 
+                     ('rfe', RFE(estimator=LogisticRegression(), n_features_to_select=5)),
+                     ('log_reg', LogisticRegression(random_state=0))])
+
+pipe.fit(X_train, y_train)
+
+
+------------------------------------------------------------------------------------------------------------------------
+features = list(range(2,15))
+mean_accuracy = []
+
+for i in features:
+  pipe     = Pipeline([('scaler', StandardScaler()), 
+                     ('rfe', RFE(estimator=LogisticRegression(), n_features_to_select=i)),
+                     ('log_reg', LogisticRegression(random_state=0))])
+
+  pipe.fit(X_train, y_train)
+
+  scores = cross_val_score(pipe, X_train, y_train, cv=10)
+  mean_accuracy.append(scores.mean())
+
+print(mean_accuracy)
+
+k_df = pd.DataFrame(features)
+k_df.rename({0:'Number of Features'}, axis=1, inplace=True)
+
+mean_accuracy_df = pd.DataFrame(mean_accuracy)*100
+mean_accuracy_df.rename({0:'mean accuracy'}, axis=1, inplace=True)
+
+to_plot = pd.concat([k_df, mean_accuracy_df], axis=1)
+
+plt.plot(to_plot['Number of Features'], to_plot['mean accuracy'])
+plt.xlabel('Number of Features')
+plt.ylabel('Mean accuracy %')
+plt.show()
+
+------------------------------------------------------------------------------------------------------------------------
+pipe     = Pipeline([('scaler', StandardScaler()), 
+                     ('rfe', RFE(estimator=LogisticRegression(), n_features_to_select=9)),
+                     ('log_reg', LogisticRegression(random_state=0))])
+
+pipe.fit(X_train, y_train)
+
+Feature_support = pd.DataFrame(pipe.named_steps['rfe'].support_, index=X_train.columns)
+Feature_support.rename({0:'Feature Support'}, axis=1, inplace=True)
+Feature_support = Feature_support.sort_values(by=['Feature Support'], ascending=False)
+print(Feature_support)
+------------------------------------------------------------------------------------------------------------------------
+
+
+pipe.score(X_test, y_test)
