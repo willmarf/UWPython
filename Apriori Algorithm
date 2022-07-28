@@ -34,3 +34,4 @@ frequent_itemsets.sort_index
 
 
 association_rules(frequent_itemsets, metric="confidence", min_threshold=0.5)
+  
