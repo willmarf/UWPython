@@ -1,0 +1,47 @@
+
+!pip uninstall mlxtend
+!pip install git+https://github.com/rasbt/mlxtend.git
+
+import pandas as pd
+from mlxtend.preprocessing import TransactionEncoder
+from mlxtend.frequent_patterns import apriori, fpgrowth, association_rules
+
+
+
+
+
+transactions = [
+['bread', 'peanut butter', 'apples', 'milk'],
+['bread', 'peanut butter', 'milk'],
+['bread', 'peanut butter'],
+['peanut butter', 'apples', 'milk'],
+['peanut butter', 'apples'],
+['apples', 'milk'],
+['peanut butter', 'milk']
+]
+
+transactions
+
+
+
+
+
+te_ = TransactionEncoder()
+te_ary = te_.fit(transactions).transform(transactions)
+te = pd.DataFrame(te_ary, columns=te_.columns_)
+
+te
+
+
+fpgrowth(te, min_support=0.1, use_colnames=True)
+
+
+
+#Time the apriori algorithm
+
+%timeit -n 100 -r 10 apriori(te, min_support=0.6)
+
+
+#Time FP Growth
+
+%timeit -n 100 -r 10 fpgrowth(te, min_support=0.6)
