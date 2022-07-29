@@ -1,0 +1,74 @@
+from google.colab import files
+cancer = files.upload()
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import Pipeline
+from sklearn.model_selection import cross_val_score
+from sklearn import tree 
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, AdaBoostClassifier
+from sklearn.inspection import permutation_importance
+
+
+cancer = pd.read_csv('cancer.csv')
+
+cancer.head()
+
+cancer.loc[cancer['diagnosis'] == 'M', 'cancer_present'] = 1
+cancer.loc[cancer['diagnosis'] == 'B', 'cancer_present'] = 0
+
+y = cancer['cancer_present']
+
+X = cancer[['radius_mean', 'texture_mean', 'perimeter_mean', 'area_mean', 'smoothness_mean', 'compactness_mean', 
+            'concavity_mean', 'concave points_mean',	'symmetry_mean',	'fractal_dimension_mean']]
+
+X.head()
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
+
+
+
+
+GradientBoost     = Pipeline([('imp_mean',SimpleImputer(missing_values=np.nan, strategy='mean')),
+                     ('scaler', StandardScaler()), 
+                     ('Gradient', GradientBoostingClassifier(random_state=42))])
+
+GradientBoost.fit(X_train, y_train)
+
+scores = cross_val_score(GradientBoost, X_train, y_train, cv=10)
+
+print(scores.mean())
+
+feature_importances_ = pd.Series(GradientBoost.named_steps['Gradient'].feature_importances_, index=X.columns)
+
+feature_importances = feature_importances_.sort_values(ascending=False)
+
+fig, ax = plt.subplots()
+feature_importances.plot.bar(ax=ax)
+ax.set_title("Feature Importances Using MDI")
+ax.set_ylabel("Mean Decrease in Impurity")
+fig.tight_layout()
+
+
+
+
+Impute = SimpleImputer(missing_values=np.nan, strategy='mean')
+Scale = StandardScaler()
+
+X_train_I = Impute.fit_transform(X_train)
+X_train_S = Scale.fit_transform(X_train_I)
+
+result = permutation_importance(GradientBoost.named_steps['Gradient'], X_train_S, y_train, random_state=42)
+permutation_importances = pd.Series(result.importances_mean, index=X.columns)
+permutation_importances.sort_values(inplace=True,ascending=False)
+
+fig, ax = plt.subplots()
+permutation_importances.plot.bar(ax=ax)
+ax.set_title("Feature Importances using Permutation Importance")
+ax.set_ylabel("Mean Accuracy Decrease")
+fig.tight_layout()
+plt.show()
