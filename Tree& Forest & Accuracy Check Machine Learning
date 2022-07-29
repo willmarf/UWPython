@@ -1,0 +1,151 @@
+
+from google.colab import files
+cancer = files.upload()
+
+-------------------------------------------------------------------------------------------------------------------
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import Pipeline
+from sklearn.model_selection import cross_val_score
+from sklearn import tree 
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
+import graphviz
+
+
+from sklearn.tree import export_graphviz
+from six import StringIO
+from IPython.display import Image  
+import pydotplus
+
+-------------------------------------------------------------------------------------------------------------------
+cancer = pd.read_csv('cancer.csv')
+
+cancer.head()
+-------------------------------------------------------------------------------------------------------------------
+cancer.loc[cancer['diagnosis'] == 'M', 'cancer_present'] = 1
+cancer.loc[cancer['diagnosis'] == 'B', 'cancer_present'] = 0
+y = cancer['cancer_present']
+
+X = cancer[['radius_mean', 'texture_mean', 'perimeter_mean', 'area_mean', 'smoothness_mean', 'compactness_mean', 
+            'concavity_mean', 'concave points_mean',	'symmetry_mean',	'fractal_dimension_mean']]
+
+X.head()
+-------------------------------------------------------------------------------------------------------------------
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
+-------------------------------------------------------------------------------------------------------------------
+
+tree1     = Pipeline([('imp_mean',SimpleImputer(missing_values=np.nan, strategy='mean')),
+                     ('scaler', StandardScaler()), 
+                     ('tree', DecisionTreeClassifier(criterion='entropy',random_state=42))])
+
+tree1.fit(X_train, y_train)
+scores = cross_val_score(tree1, X_train, y_train, cv=10)
+
+print(scores)
+
+print(scores.mean())
+print(scores.std())
+-------------------------------------------------------------------------------------------------------------------
+
+features = ['radius_mean', 'texture_mean', 'perimeter_mean', 'area_mean', 'smoothness_mean', 'compactness_mean', 
+            'concavity_mean', 'concave points_mean',	'symmetry_mean',	'fractal_dimension_mean']
+
+dot_data = StringIO()
+export_graphviz(tree1.named_steps['tree'], out_file=dot_data,  
+                filled=True, rounded=True,
+                special_characters=True,feature_names = features,class_names=['0','1'])
+graph = pydotplus.graph_from_dot_data(dot_data.getvalue())  
+graph.write_png('tree.png')
+Image(graph.create_png())
+
+-------------------------------------------------------------------------------------------------------------------
+tree2     = Pipeline([('imp_mean',SimpleImputer(missing_values=np.nan, strategy='mean')),
+                     ('scaler', StandardScaler()), 
+                     ('tree', DecisionTreeClassifier(criterion='gini',random_state=42))])
+
+tree2.fit(X_train, y_train)
+
+scores = cross_val_score(tree2, X_train, y_train, cv=10)
+
+print(scores.mean())
+
+
+dot_data = StringIO()
+export_graphviz(tree2.named_steps['tree'], out_file=dot_data,  
+                filled=True, rounded=True,
+                special_characters=True,feature_names = features,class_names=['0','1'])
+graph = pydotplus.graph_from_dot_data(dot_data.getvalue())  
+graph.write_png('tree.png')
+Image(graph.create_png())
+-------------------------------------------------------------------------------------------------------------------
+forest     = Pipeline([('imp_mean',SimpleImputer(missing_values=np.nan, strategy='mean')),
+                     ('scaler', StandardScaler()), 
+                     ('tree', RandomForestClassifier(random_state=42))])
+
+forest.fit(X_train, y_train)
+
+scores = cross_val_score(forest, X_train, y_train, cv=10)
+
+print(scores.mean())
+
+
+
+-------------------------------------------------------------------------------------------------------------------
+mean_accuracy = []
+
+for i in [3, 4, 5, 6, 7, 8, 9, 10, 11, 12]:
+  pipe     = Pipeline([('imp_mean',SimpleImputer(missing_values=np.nan, strategy='mean')),
+                     ('scaler', StandardScaler()), 
+                     ('tree', RandomForestClassifier(random_state=42, max_depth=i))])
+
+  pipe.fit(X_train, y_train)
+  scores = cross_val_score(pipe, X_train, y_train, cv=10)
+  mean_accuracy.append(scores.mean())
+
+
+max_depth_df = pd.DataFrame([3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
+max_depth_df.rename({0:'max_depth'}, axis=1, inplace=True)
+
+mean_accuracy_df = pd.DataFrame(mean_accuracy)*100
+mean_accuracy_df.rename({0:'mean accuracy'}, axis=1, inplace=True)
+
+to_plot = pd.concat([max_depth_df, mean_accuracy_df], axis=1)
+
+print(to_plot)
+
+plt.plot(to_plot['max_depth'], to_plot['mean accuracy'])
+plt.xlabel('Max Depth')
+plt.ylabel('Mean accuracy %')
+plt.show()
+
+mean_accuracy = []
+
+for i in [3, 4, 5, 6, 7, 8, 9, 10]:
+  pipe     = Pipeline([('imp_mean',SimpleImputer(missing_values=np.nan, strategy='mean')),
+                     ('scaler', StandardScaler()), 
+                     ('tree', RandomForestClassifier(random_state=42, max_depth=8, max_features=i))])
+
+  pipe.fit(X_train, y_train)
+  scores = cross_val_score(pipe, X_train, y_train, cv=10)
+  mean_accuracy.append(scores.mean())
+
+
+max_features_df = pd.DataFrame([3, 4, 5, 6, 7, 8, 9, 10])
+max_features_df.rename({0:'max_features'}, axis=1, inplace=True)
+
+mean_accuracy_df = pd.DataFrame(mean_accuracy)*100
+mean_accuracy_df.rename({0:'mean accuracy'}, axis=1, inplace=True)
+
+to_plot = pd.concat([max_features_df, mean_accuracy_df], axis=1)
+
+print(to_plot)
+
+plt.plot(to_plot['max_features'], to_plot['mean accuracy'])
+plt.xlabel('Max Features')
+plt.ylabel('Mean accuracy %')
+plt.show()
