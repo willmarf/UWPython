@@ -1,0 +1,37 @@
+
+import pandas as pd
+import pandas as pd
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+
+
+
+Maybe = "I threw a wish in the well Dont ask me, Ill never tell I looked to you as it fell And now youre in my way I trade my soul for a wish Pennies and dimes for a kiss I wasnt looking for this But now youre in my way Your stare was holdin Ripped jeans, skin was showin Hot night, wind was blowin Where you think youre going, baby? Hey, I just met you, and this is crazy But heres my number, so call me, maybe Its hard to look right at you, baby But heres my number, so call me, maybe Hey, I just met you, and this is crazy But heres my number, so call me, maybe And all the other boys try to chase me But heres my number, so call me, maybe You took your time with the call I took no time with the fall You gave me nothing at all But still, youre in my way I beg and borrow and steal At first sight, and its real I didnt know I would feel it But its in my way Your stare was holdin Ripped jeans, skin was showin Hot night, wind was blowin Where you think youre going, baby? Hey, I just met you, and this is crazy But heres my number, so call me, maybe Its hard to look right at you, baby But heres my number, so call me, maybe Hey, I just met you, and this is crazy But heres my number, so call me, maybe And all the other boys try to chase me But heres my number, so call me, maybe Before you came into my life, I missed you so bad I missed you so bad, I missed you so, so bad Before you came into my life, I missed you so bad And you should know that I missed you so, so bad (Bad, bad, bad, bad, bad, bad) Its hard to look right at you, baby But heres my number, so call me, maybe Hey, I just met you, and this is crazy But heres my number, so call me, maybe And all the other boys try to chase me But heres my number, so call me, maybe Before you came into my life, I missed you so bad I missed you so bad, I missed you so, so bad Before you came into my life, I missed you so bad And you should know that So call me maybe"
+
+TwentyTwo = "It feels like a perfect night To dress up like hipsters And make fun of our exes Ah-ah, ah-ah It feels like a perfect night For breakfast at midnight To fall in love with strangers Ah-ah, ah-ah Yeah, were happy, free, confused and lonely at the same time Its miserable and magical, oh yeah Tonights the night when we forget about the deadlines Its time, oh-oh I dont know about you But Im feeling 22 Everything will be alright if You keep me next to you You dont know about me But Ill bet you want to Everything will be alright if We just keep dancing like were 22, 22 It seems like one of those nights This place is too crowded Too many cool kids (Whos Taylor Swift anyway? Ew) Ah-ah, ah-ah It seems like one of those nights We ditch the whole scene And end up dreamin instead of sleeping, yeah Were happy, free, confused and lonely in the best way Its miserable and magical, oh yeah Tonights the night when we forget about the heartbreaks Its time, oh-oh I dont know about you But Im feeling 22 Everything will be alright if You keep me next to you You dont know about me But Ill bet you want to Everything will be alright if We just keep dancing like were 22 (Oh, oh, oh, oh) 22 I dont know about you 22, 22 It feels like one of those nights We ditch the whole scene It feels like one of those nights We wont be sleeping It feels like one of those nights You look like bad news I gotta have you I gotta have you Ooh, ooh, yeah, yeah I dont know about you But Im feeling 22 Everything will be alright if (Ooh) You keep me next to you You dont know about me But Ill bet you want to Everything will be alright if We just keep dancing like were 22 22 (Dancing like) 22 (Yeah, yeah) 22 (Yeah, yeah, yeah) It feels like one of those nights We ditch the whole scene It feels like one of those nights We wont be sleeping It feels like one of those nights You look like bad news I gotta have you I gotta have you"
+
+Firework = "Do you ever feel like a plastic bag Drifting through the wind, wanting to start again? Do you ever feel, feel so paper thin Like a house of cards, one blow from cavin in? Do you ever feel already buried deep? Six feet under screams, but no one seems to hear a thing Do you know that theres still a chance for you? Cause theres a spark in you You just gotta ignite the light And let it shine Just own the night Like the Fourth of July Cause baby, youre a firework Come on, show em what youre worth Make em go, Oh, oh, oh As you shoot across the sky Baby, youre a firework Come on, let your colors burst Make em go, Oh, oh, oh Youre gonna leave 'em all in awe, awe, awe You dont have to feel like a waste of space Youre original, cannot be replaced If you only knew what the future holds After a hurricane comes a rainbow Maybe a reason why all the doors are closed So you could open one that leads you to the perfect road Like a lightning bolt, your heart will glow And when its time, you'll know You just gotta ignite the light And let it shine Just own the night Like the Fourth of July Cause baby, youre a firework Come on, show em what you're worth Make em go, Oh, oh, oh As you shoot across the sky Baby, youre a firework Come on, let your colors burst Make em go, Oh, oh, oh Youre gonna leave em all in awe, awe, awe Boom, boom, boom Even brighter than the moon, moon, moon Its always been inside of you, you, you And now its time to let it through Cause baby, youre a firework Come on, show em what youre worth Make em go, Oh, oh, oh As you shoot across the sky Baby, youre a firework Come on, let your colors burst Make em go, Oh, oh, oh Youre gonna leave em all in awe, awe, awe Boom, boom, boom Even brighter than the moon, moon, moon Boom, boom, boom Even brighter than the moon, moon, moon"
+
+songs = [Maybe, TwentyTwo, Firework]
+
+
+
+
+count_vectorizer = CountVectorizer(stop_words='english')
+lyric_matrix = count_vectorizer.fit_transform(songs)
+
+read_lyrics_ = lyric_matrix.todense()
+read_lyrics = pd.DataFrame(read_lyrics_, 
+                  columns=count_vectorizer.get_feature_names(), 
+                  index=['Maybe', 'TwentyTwo', 'Firework'])
+
+print(read_lyrics)
+
+
+
+similarity = cosine_similarity(read_lyrics, read_lyrics)
+
+
+print('The cosine similarity between Call Me Maybe and 22 is', str(similarity[0,1]))
+print('The cosine similarity between Call Me Maybe and Firework is', str(similarity[0,2]))
+print('The cosine similarity between 22 and Firework is', str(similarity[1,2]))
