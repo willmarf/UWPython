@@ -1,0 +1,67 @@
+import pandas as pd
+import re
+import nltk
+
+nltk.download('punkt')
+nltk.download('stopwords')
+from nltk.corpus import stopwords
+from gensim.models import Word2Vec
+
+
+
+----------------------------
+Shakespeare = 'https://www.gutenberg.org/cache/epub/100/pg100.txt'
+wandp = 'https://www.gutenberg.org/cache/epub/2600/pg2600.txt'
+pandp = 'https://www.gutenberg.org/files/42671/42671.txt'
+sherlock = 'https://www.gutenberg.org/files/1661/1661-0.txt'
+moby = 'https://www.gutenberg.org/files/2701/2701-0.txt'
+gatsby = 'https://www.gutenberg.org/cache/epub/64317/pg64317.txt'
+expectations = 'https://www.gutenberg.org/files/1400/1400-0.txt'
+little = 'https://www.gutenberg.org/cache/epub/514/pg514.txt'
+cities = 'https://www.gutenberg.org/files/98/98-0.txt'
+frankenstein = 'https://www.gutenberg.org/files/84/84-0.txt'
+crime = 'https://www.gutenberg.org/files/2554/2554-0.txt'
+count = 'https://www.gutenberg.org/cache/epub/1184/pg1184.txt'
+heights = 'https://www.gutenberg.org/files/1399/1399-0.txt'
+
+texts = [Shakespeare, wandp, pandp, sherlock, moby, gatsby, expectations, little, cities, frankenstein, crime, count, heights ]
+
+import requests
+
+data = ''
+
+for text in texts:
+  response = requests.get(text)
+  data += response.text
+
+
+
+result = data.lower()
+result = re.sub('[^a-zA-Z\.]', ' ', result)
+result = re.sub(r'\s+', ' ', result)
+
+
+--------------
+
+tokenized_words = nltk.sent_tokenize(result)
+tokenized_words
+
+sentences = [nltk.word_tokenize(a) for a in tokenized_words]
+
+
+for i in range(len(sentences)):
+    sentences[i] = [w for w in sentences[i] if w not in stopwords.words('english')]
+
+----------------
+model = Word2Vec(sentences)
+
+similar = model.wv.most_similar('music')
+similar
+
+
+similar = model.wv.most_similar('love')
+similar
+
+--------
+
+
