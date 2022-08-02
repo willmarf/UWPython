@@ -1,0 +1,64 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.feature_extraction.text import CountVectorizer
+!pip install wordcloud
+import wordcloud
+
+
+
+from google.colab import files
+yelp_labeled = files.upload()
+
+
+Yelp = pd.read_csv('yelp_labeled.txt',delimiter='\t',header=None)
+Yelp.rename(columns={0:'Review',1:'Sentiment'}, inplace=True)
+print(Yelp.head())
+
+
+#one is good 0 is bad
+
+model = CountVectorizer()
+model.fit(Yelp['Review'])
+
+
+print(model.vocabulary_)
+
+
+Positive = Yelp['Review'].loc[Yelp['Sentiment']==1]
+Positive.head()
+
+#alternatively 
+Yelp[~Yelp['Sentiment'] == 0]
+#alternatively 
+Yelp[Yelp['Sentiment'] != 0]
+
+Negative = Yelp['Review'].loc[Yelp['Sentiment']==0]
+Negative.head()
+
+
+
+Positive_blob = ''
+for i in Positive:
+  Positive_blob += i
+
+Negative_blob = ''
+for i in Negative:
+  Negative_blob += i
+
+
+
+
+word_cloud = wordcloud.WordCloud(max_font_size=40).generate(Positive_blob)
+plt.figure()
+plt.imshow(word_cloud, interpolation="bilinear")
+plt.axis("off")
+plt.show()
+
+
+
+word_cloud = wordcloud.WordCloud(max_font_size=40).generate(Negative_blob)
+plt.figure()
+plt.imshow(word_cloud, interpolation="bilinear")
+plt.axis("off")
+plt.show()
+
