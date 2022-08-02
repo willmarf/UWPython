@@ -1,0 +1,128 @@
+
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.model_selection import cross_val_score
+from sklearn.naive_bayes import MultinomialNB
+
+import nltk
+nltk.download('omw-1.4')
+nltk.download('punkt')
+nltk.download('wordnet')
+
+from textblob import TextBlob
+import re
+from nltk.stem.porter import PorterStemmer
+porter_stemmer = PorterStemmer()
+from nltk import word_tokenize         
+from nltk.stem import WordNetLemmatizer 
+
+def stemming_tokenizer(str_input):
+    words = re.sub(r"[^A-Za-z0-9\-]", " ", str_input).lower().split()
+    words = [porter_stemmer.stem(word) for word in words]
+    return words
+
+class LemmaTokenizer:
+    def __init__(self):
+        self.wnl = WordNetLemmatizer()
+    def __call__(self, doc):
+        return [self.wnl.lemmatize(t) for t in word_tokenize(doc)]
+ 
+        
+        --------------------------------------------------------
+from google.colab import files
+yelp_labeled = files.upload()
+
+
+---------------------------------------
+Yelp = pd.read_csv('yelp_labeled.txt',delimiter='\t',header=None)
+Yelp.rename(columns={0:'Review',1:'Sentiment'}, inplace=True)
+print(Yelp.head())
+
+--------------------------------------------------
+
+
+Vectorizer = CountVectorizer(stop_words={'english'})
+
+X = Vectorizer.fit_transform(Yelp['Review'])
+
+y = Yelp['Sentiment']
+
+----------------------------------------
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
+
+yelp_review = MultinomialNB()
+yelp_review.fit(X_train,y_train)
+
+scores = cross_val_score(yelp_review, X_train, y_train, cv=10)
+
+print(scores.mean())
+
+
+-------------------------------------------------------
+Vectorizer2 = CountVectorizer(tokenizer=stemming_tokenizer)
+
+X_2 = Vectorizer2.fit_transform(Yelp['Review'])
+
+--------------------------------------------------------------
+X_train, X_test, y_train, y_test = train_test_split(X_2, y, test_size=0.25, random_state=42)
+
+yelp_review = MultinomialNB()
+yelp_review.fit(X_train,y_train)
+
+scores = cross_val_score(yelp_review, X_train, y_train, cv=10)
+
+print(scores.mean())
+---------------------------------------------------------------------
+
+Vectorizer3 = CountVectorizer(tokenizer=LemmaTokenizer())
+
+X_3 = Vectorizer3.fit_transform(Yelp['Review'])
+------------------------------------------------------
+X_train, X_test, y_train, y_test = train_test_split(X_3, y, test_size=0.25, random_state=42)
+
+yelp_review = MultinomialNB()
+yelp_review.fit(X_train,y_train)
+
+scores = cross_val_score(yelp_review, X_train, y_train, cv=10)
+
+print(scores.mean())
+----------------------------------------------------------
+Vectorizer4 = CountVectorizer(ngram_range=(1,3))
+
+X_4 = Vectorizer4.fit_transform(Yelp['Review'])
+----------------------------------------------------
+
+
+
+X_train, X_test, y_train, y_test = train_test_split(X_4, y, test_size=0.25, random_state=42)
+
+yelp_review = MultinomialNB()
+yelp_review.fit(X_train,y_train)
+
+scores = cross_val_score(yelp_review, X_train, y_train, cv=10)
+
+print(scores.mean())
+
+
+----------------------------------------
+Vectorizer5 = CountVectorizer(ngram_range=(1,3), tokenizer=stemming_tokenizer)
+
+X_5 = Vectorizer5.fit_transform(Yelp['Review'])
+
+X_train, X_test, y_train, y_test = train_test_split(X_5, y, test_size=0.25, random_state=42)
+
+yelp_review = MultinomialNB()
+yelp_review.fit(X_train,y_train)
+
+scores = cross_val_score(yelp_review, X_train, y_train, cv=10)
+
+print(scores.mean())
+
+
+------------------------------------------
+yelp_review.score(X_test,y_test)
+
+
+
