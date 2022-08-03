@@ -1,0 +1,70 @@
+
+!pip install gensim
+import gensim
+import re
+import requests
+
+!pip install sumy
+import sumy
+
+from sumy.parsers.plaintext import PlaintextParser
+from sumy.nlp.tokenizers import Tokenizer
+from sumy.summarizers.lex_rank import LexRankSummarizer
+import nltk
+nltk.download('punkt')
+
+
+-----------------------------------------------------------------------
+
+
+from google.colab import files
+text = files.upload()
+
+-----------------------------------------------------------------------
+with open('Douglass Article 1.txt') as f:
+    text1 = f.readlines()
+
+with open('Douglass Article 2.txt') as f:
+    text2 = f.readlines()
+
+article1 = ''
+for line in text1: 
+  article1 +=line
+
+article2 = ''
+for line in text2: 
+  article2 +=line
+
+article1 = re.sub('[^a-zA-Z\.]', ' ', article1)
+article1 = re.sub(r'\s+', ' ', article1)
+
+article2 = re.sub('[^a-zA-Z\.]', ' ', article2)
+article2 = re.sub(r'\s+', ' ', article2)
+
+print(article1)
+print(article2)
+
+
+-----------------------------------------------------------------------
+
+
+article1_parsed = PlaintextParser.from_string(article1,Tokenizer('english'))
+
+article2_parsed = PlaintextParser.from_string(article2,Tokenizer('english')) 
+
+-----------------------------------------------------------------------
+
+lex_rank_summarizer = LexRankSummarizer()
+lexrank_summary = lex_rank_summarizer(article1_parsed.document,sentences_count=3)
+
+lexrank_summary
+
+-------------------------------------------------------------------------
+lex_rank_summarizer = LexRankSummarizer()
+lexrank_summary = lex_rank_summarizer(article2_parsed.document,sentences_count=3)
+
+lexrank_summary
+---------------------------------------------------------------------------
+
+
+
