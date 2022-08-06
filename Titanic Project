@@ -1,0 +1,344 @@
+#so that it doesn't get deleted by google colab again...
+ 
+ 
+ #Step 1
+
+#for basic regression, I think this will be good because its a pretty simple data set, I would like to maybe get like a Stata regression output. Will need to look up 
+#how to do that again
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import r2_score, mean_squared_error as MSE
+
+
+
+#for trees
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import Pipeline
+from sklearn.model_selection import cross_val_score
+from sklearn import tree 
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
+import graphviz
+
+from sklearn.tree import export_graphviz
+from six import StringIO
+from IPython.display import Image  
+import pydotplus
+
+
+
+
+from google.colab import files
+Titanic = files.upload()
+
+
+df = pd.read_csv('Titanic.csv')
+df.head()
+
+
+#Step 4
+
+#One-hot encoding 
+categorical_cols = ['Sex','Embarked']
+
+X = df
+
+X = pd.get_dummies(X, columns = categorical_cols)
+
+X = X.drop(labels = ['PassengerId', 'Pclass', 'Name', 'Ticket','Cabin'], axis = 1)
+
+X.isnull().sum()
+X.count()
+#714 data points seems good still and I dont like imputing age so we're gonna drop those and run with our 714
+
+X.dropna(inplace = True)
+
+y = X['Survived']
+X = X.drop(['Survived'], axis = 1)
+
+print(X.count(), y.count())
+
+
+
+#ok so we OHE'd we dropped columns we didn't care about, we cleared a bunch of data points with missing age, and then we seperated X and y AND then we drop y from X
+#very cool, here's the simple regression
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42) 
+
+
+reg = LinearRegression()
+
+model = reg.fit(X_train, y_train)
+
+
+y_pred = model.predict(X_train)
+
+y_pred_val = model.predict(X_test)
+
+
+RMSE= MSE(y_train, y_pred, squared = False)
+
+print(RMSE)
+
+r2_train = r2_score(y_train, y_pred)
+print(r2_train)
+#hmm not great
+
+
+
+RMSE_test = MSE(y_test, y_pred_val, squared = False)
+r2_test = r2_score(y_test, y_pred_val)
+print(RMSE_test, r2_test)
+#even worse, we made a bad model, but that's cool
+#10 variables like .35 explanatory power. This ain't it.
+#honestly for sure colinearity between things like Ticket price and Passenger Class and probably other things too... 
+#ok we do it again without that column and its a little better and I feel a little better about it so we're leaving Pclass out
+
+## THE REAL SHOW, TREES!!!
+
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
+tree1     = Pipeline([('imp_mean',SimpleImputer(missing_values=np.nan, strategy='mean')),
+                     ('scaler', StandardScaler()), 
+                     ('tree', DecisionTreeClassifier(criterion='entropy',random_state=42))])
+
+tree1.fit(X_train, y_train)
+scores = cross_val_score(tree1, X_train, y_train, cv=10)
+
+print(scores)
+
+print(scores.mean())
+print(scores.std())
+
+
+X.columns
+features = ['Age', 'SibSp', 'Parch', 'Fare', 'Sex_female', 'Sex_male',
+       'Embarked_C', 'Embarked_Q', 'Embarked_S']
+
+dot_data = StringIO()
+export_graphviz(tree1.named_steps['tree'], out_file=dot_data,  
+                filled=True, rounded=True,
+                special_characters=True,feature_names = features,class_names=['0','1'])
+graph = pydotplus.graph_from_dot_data(dot_data.getvalue())  
+graph.write_png('tree.png')
+Image(graph.create_png())
+
+
+
+tree2     = Pipeline([('imp_mean',SimpleImputer(missing_values=np.nan, strategy='mean')),
+                     ('scaler', StandardScaler()), 
+                     ('tree', DecisionTreeClassifier(criterion='gini',random_state=42))])
+
+tree2.fit(X_train, y_train)
+
+scores = cross_val_score(tree2, X_train, y_train, cv=10)
+
+print(scores.mean())
+
+
+
+
+dot_data = StringIO()
+export_graphviz(tree2.named_steps['tree'], out_file=dot_data,  
+                filled=True, rounded=True,
+                special_characters=True,feature_names = features,class_names=['0','1'])
+graph = pydotplus.graph_from_dot_data(dot_data.getvalue())  
+graph.write_png('tree.png')
+Image(graph.create_png())
+
+
+forest     = Pipeline([('imp_mean',SimpleImputer(missing_values=np.nan, strategy='mean')),
+                     ('scaler', StandardScaler()), 
+                     ('tree', RandomForestClassifier(random_state=42))])
+
+forest.fit(X_train, y_train)
+
+scores = cross_val_score(forest, X_train, y_train, cv=10)
+
+print(scores.mean())
+
+
+
+mean_accuracy = []
+
+for i in [3, 4, 5, 6, 7, 8, 9, 10, 11, 12]:
+  pipe     = Pipeline([('imp_mean',SimpleImputer(missing_values=np.nan, strategy='mean')),
+                     ('scaler', StandardScaler()), 
+                     ('tree', RandomForestClassifier(random_state=42, max_depth=i))])
+
+  pipe.fit(X_train, y_train)
+  scores = cross_val_score(pipe, X_train, y_train, cv=10)
+  mean_accuracy.append(scores.mean())
+
+
+max_depth_df = pd.DataFrame([3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
+max_depth_df.rename({0:'max_depth'}, axis=1, inplace=True)
+
+mean_accuracy_df = pd.DataFrame(mean_accuracy)*100
+mean_accuracy_df.rename({0:'mean accuracy'}, axis=1, inplace=True)
+
+to_plot = pd.concat([max_depth_df, mean_accuracy_df], axis=1)
+
+print(to_plot)
+
+plt.plot(to_plot['max_depth'], to_plot['mean accuracy'])
+plt.xlabel('Max Depth')
+plt.ylabel('Mean accuracy %')
+plt.show()
+
+# 4 and 5 were the same and I literally have all day, so we do feature selection on depth 5
+
+
+
+for i in [3, 4, 5, 6, 7, 8, 9, 10]:
+  pipe     = Pipeline([('imp_mean',SimpleImputer(missing_values=np.nan, strategy='mean')),
+                     ('scaler', StandardScaler()), 
+                     ('tree', RandomForestClassifier(random_state=42, max_depth=5, max_features=i))])
+
+  pipe.fit(X_train, y_train)
+  scores = cross_val_score(pipe, X_train, y_train, cv=10)
+  mean_accuracy.append(scores.mean())
+
+
+max_features_df = pd.DataFrame([3, 4, 5, 6, 7, 8, 9, 10])
+max_features_df.rename({0:'max_features'}, axis=1, inplace=True)
+
+mean_accuracy_df = pd.DataFrame(mean_accuracy)*100
+mean_accuracy_df.rename({0:'mean accuracy'}, axis=1, inplace=True)
+
+to_plot = pd.concat([max_features_df, mean_accuracy_df], axis=1)
+
+print(to_plot)
+
+plt.plot(to_plot['max_features'], to_plot['mean accuracy'])
+plt.xlabel('Max Features')
+plt.ylabel('Mean accuracy %')
+plt.show()
+
+# and the forest seems to think that wee need .. ok it thinks we need 10 features first and foremost, BUT with 9 it does run I hope I didn't violate some rule of the forest
+#BUT now it thinks we get the same value 80.391 from 3 and 4 features...
+what are those features be?
+
+
+GradientBoost     = Pipeline([('imp_mean',SimpleImputer(missing_values=np.nan, strategy='mean')),
+                     ('scaler', StandardScaler()), 
+                     ('Gradient', GradientBoostingClassifier(random_state=42))])
+
+GradientBoost.fit(X_train, y_train)
+
+scores = cross_val_score(GradientBoost, X_train, y_train, cv=10)
+
+print(scores.mean())
+
+feature_importances_ = pd.Series(GradientBoost.named_steps['Gradient'].feature_importances_, index=X.columns)
+
+feature_importances = feature_importances_.sort_values(ascending=False)
+
+fig, ax = plt.subplots()
+feature_importances.plot.bar(ax=ax)
+ax.set_title("Feature Importances Using MDI")
+ax.set_ylabel("Mean Decrease in Impurity")
+fig.tight_layout()
+
+
+
+
+Impute = SimpleImputer(missing_values=np.nan, strategy='mean')
+Scale = StandardScaler()
+
+X_train_I = Impute.fit_transform(X_train)
+X_train_S = Scale.fit_transform(X_train_I)
+
+result = permutation_importance(GradientBoost.named_steps['Gradient'], X_train_S, y_train, random_state=42)
+permutation_importances = pd.Series(result.importances_mean, index=X.columns)
+permutation_importances.sort_values(inplace=True,ascending=False)
+
+fig, ax = plt.subplots()
+permutation_importances.plot.bar(ax=ax)
+ax.set_title("Feature Importances using Permutation Importance")
+ax.set_ylabel("Mean Accuracy Decrease")
+fig.tight_layout()
+plt.show()
+
+
+#THOSE FEATURES ARE UNDISPUTABLY
+#SEX(female), Fare and AGE
+#However the order does seem to vary a little bit
+#if a 4th were to be added it seems sort of stuck between SbSip and Sex_male
+#sex_male and sex_female are pretty fundamentally intertwined (we OHE'd them) so If i needed one more feature I'd probably make it SbSP as it is interesting..
+
+#Ok i did the old regression again with just the best 4 variables laid out above... it was slightly better with a validation set r2 of .276 compared to the old of .263 
+#that's cool uhhh here's the code for that I guess
+
+#WE'RE GONNA RUN THE SIMPLE REGRESSION AGAIN BUT JUST WITH OUR 3 VARIABLES AND SEE IF IT DOES BETTER
+
+X2 = X.drop(labels = ['Sex_male', 'Parch', 'Embarked_C','Embarked_S', 'Embarked_Q'], axis = 1)
+
+X2_train, X2_test, y2_train, y2_test = train_test_split(X2, y, test_size=0.25, random_state=42) 
+
+
+reg = LinearRegression()
+
+model = reg.fit(X2_train, y_train)
+
+y2_pred = model.predict(X2_train)
+
+y2_pred_val = model.predict(X2_test)
+
+
+RMSE2= MSE(y2_train, y2_pred, squared = False)
+
+print(RMSE)
+
+r2_train2 = r2_score(y2_train, y2_pred)
+print(r2_train2)
+
+
+RMSE2_test = MSE(y2_test, y2_pred_val, squared = False)
+r2_test2 = r2_score(y2_test, y2_pred_val)
+print(RMSE2_test, r2_test2)
+
+
+
+#EVALUATION
+#the trees model was excellent and our regression was bogus
+## Through our trees and forest we found the best 3, 4 or 5 features depending on how you look at it. GOT a good accuracy of .78 which while for sure overfitted is much better than 
+#the  .27 explanatory power our simple regression had
+#there are some cool insights in the tree1 and tree2 we did
+#the first node is Sex_female in both, if sex_female = 1 (>.2 whatever) which means if the passenger was male the next imporatant variable was age and if the passenger was female the next most important variable was class! 
+#I had to read that twice because I kinda thought it would be the inverse but that seems to be what the decision tree is concluding.
+#still cool though.
+#yeah in conclusion the basic regression that served me so well in my economics degree has literally nothing on our machine learning forest.. as long as we make sure we aren't overfitting agregiously
+
+#Reporting
+#ok so we OHE'd Sex and Embarkation port because those are unrankable variables I decided may be insightful 
+#we dropped columns we didn't care about, I heard some students were doing NLP on "name" but when Sex, Age and Spouse/Sibilng are divided up for me i'm not sure how much titles and prefixes matter
+#other columns we didnt care about, Cabin (because I dont feel like mapping the titanic physically for this model),
+#ticket number (because we know how much they paid for the ticket, and I dont know how to read the ticket code, and some economic assumptions about tickets being priced according to services offered such that more $ is a better ticket in general)
+# also dropped passenger id because its basically an index which one does not regress on, and I dropped Pclass because I am fairly convinced it is a discrete variable that tells us the same things about our passenger that Fare does
+#so why use a dull instrument that = {1,2,3} when the whole slew of prices can be interpereted upon
+#, we cleared a bunch of data points with missing age, and then we seperated X and y AND then we drop y from X so that our X and y lengths were equal and such that we were aboslutetly certain the y matched its corresponding X row (which is why we did this very last)
+# baseilne model was a simple linear regression, in part because i wanted a litmos test, the r2 from the validation set is what we care most about and it was... pretty bad, idk i thought we'd do better than 27% changes in y caused by varaibles described in X.. which we did
+#I did trees because I liked the big pretty picture and I wanted the practice interpereting. we get an accuracy score as well as a bunch of cool feature selection graphs so evaluating it was fairly easy
+#and the evaluations we got from the forest allowed us to improve our simple linear regression (by elminating 5 variables that were closer to noise than useful for our regression)
+#our final tree2 (gini) accuracy score mean was .783 which I think is pretty good, just under 80% of the time if our algorithm predicts you'll live you'll live, and vice versa which is pretty great! Better than flipping coins.
+#hmm as a quick thought experiment flipping coins is worse than predicting unilaterally unless the odds are exactly 50/50
+#if 85% of people on the titanic survived a better model would be predict all survive.. let me see what the ratio of survival to death was to see how good we really did
+print('deceased passengers:', y.count() - y.sum(),
+      "\t",      'surviving passengers:', y.sum(),
+      "\t"      'total passengers:', y.count())
+#424 dead and 290 alive from our ultimate kept data.
+
+# so approximately 41% of people lived, our simple strong strategy is to predict 100% fatalities and get 59% correct.. we beat that by 21% (or slightly less due to overfitting... but hey not bad still)
+#thank you for your time.
+
+
+
+
+
