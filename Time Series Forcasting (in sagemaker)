@@ -1,0 +1,351 @@
+import warnings
+warnings.filterwarnings('ignore')
+bucket_name='c50740a769012l2514362t1w4765609909-forecastbucket-1wgluho1wppes'
+
+import boto3
+import pandas as pd
+import matplotlib
+import matplotlib.pyplot as plt
+import sagemaker
+import time, sys, os, io, json
+import xlrd
+
+
+
+retail = pd.read_excel('online_retail_II.xlsx',engine='openpyxl')
+
+
+retail = retail.dropna()
+
+
+retail.shape
+
+retail.dtypes
+
+retail.head(20)
+
+
+retail = retail[['StockCode','Quantity','Price','Country','InvoiceDate']]
+
+
+retail['InvoiceDate'] = pd.to_datetime(retail.InvoiceDate)
+retail = retail.set_index('InvoiceDate')
+
+
+retail.shape
+
+retail.head()
+
+
+retail['2010-01-04']
+
+
+retail['2010-01':'2010-02']
+
+
+retail.index.min()
+
+
+
+retail.index.max()
+
+
+retail['Year'] = retail.index.year
+retail['Month'] = retail.index.month
+retail['weekday_name'] = retail.index.day_name()
+
+
+
+
+retail.Month.value_counts(sort=False).plot(kind='bar')
+
+
+day_order = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+retail.weekday_name.value_counts(sort=False).loc[day_order].plot(kind='bar')
+
+retail.Country.unique()
+
+retail.Country.value_counts()
+
+
+country_filter = ['United Kingdom']
+retail = retail[retail.Country.isin(country_filter)]
+
+
+retail = retail[['StockCode','Quantity','Price']]
+
+retail.head()
+
+
+retail.StockCode.describe()
+
+
+retail.StockCode.value_counts().plot()
+
+
+retail.Quantity.describe()
+
+retail.Quantity.plot()
+
+
+retail = retail[retail.Quantity>0]
+
+
+
+retail.Price.describe()
+
+
+retail.Price.plot()
+
+
+retail[retail.Price>500].head()
+
+
+retail = retail[retail.StockCode!='M']
+
+
+retail.Price.describe()
+
+
+retail[retail.Price>300].head(20)
+
+
+stockcodes = ['ADJUST', 'ADJUST2', 'POST']
+retail = retail[~retail.StockCode.isin(stockcodes)]
+
+retail.Price.describe()
+
+
+retail[retail.Price==0].count
+
+retail = retail[retail.Price>0]
+
+
+df_time_series = retail[['StockCode','Quantity']]
+df_related_time_series = retail[['StockCode','Price']]
+
+
+df_time_series[df_time_series.StockCode==21232]['2009-12-01']
+
+
+df_time_series = df_time_series.groupby('StockCode').resample('D').sum().reset_index()
+
+df_time_series['InvoiceDate'] = pd.to_datetime(df_time_series.InvoiceDate)
+df_time_series = df_time_series.set_index('InvoiceDate')
+df_time_series.head()
+
+
+df_time_series = df_time_series.groupby('StockCode').resample('D').sum().reset_index().set_index(['InvoiceDate'])
+
+
+df_time_series[df_time_series.StockCode==21232]
+
+
+df_related_time_series.head()
+df_related_time_series2 = df_related_time_series.groupby('StockCode').resample('D').mean().reset_index().set_index(['InvoiceDate','StockCode'])
+df_related_time_series2.head(20)
+
+
+
+retail[retail.StockCode == 10002]['2009-12']
+
+df_related_time_series3 = df_related_time_series2.groupby('StockCode').pad()
+
+df_related_time_series3.head(20)
+
+
+### OK THAT WAS ALL VARIABLE EXPLORATION AND A LITTLE DOWNSAMPLING, BACK TO JUICY STUFF
+
+import sys
+
+class StatusIndicator:
+    
+    def __init__(self):
+        self.previous_status = None
+        self.need_newline = False
+        
+    def update( self, status ):
+        if self.previous_status != status:
+            if self.need_newline:
+                sys.stdout.write("\n")
+            sys.stdout.write( status + " ")
+            self.need_newline = True
+            self.previous_status = status
+        else:
+            # sys.stdout.write(".")
+            print('.',end='')
+            self.need_newline = True
+        sys.stdout.flush()
+
+    def end(self):
+        if self.need_newline:
+            sys.stdout.write("\n")
+            
+            
+            
+            
+
+bucket='mlf-lab4-forecastbucket-12sb9sjex9iv'
+
+session = boto3.Session() 
+forecast = session.client(service_name='forecast') 
+forecast_query = session.client(service_name='forecastquery')
+
+
+
+print('Waiting for the predictor arn to be available')
+while True:
+    %store -r
+    is_local = "forecast_arn" in locals()
+    if is_local: break
+    print('.',end='')
+    time.sleep(10)
+
+print('Waiting for the predictor to be available')
+status_indicator_predictor = StatusIndicator()
+while True:
+    status = forecast.describe_predictor(PredictorArn=predictor_arn)['Status']
+    status_indicator_predictor.update(status)
+    if status in ('ACTIVE', 'CREATE_FAILED'): break
+    time.sleep(10)
+
+status_indicator_predictor.end()
+    
+print('Waiting for forecast to be available')
+status_indicator = StatusIndicator()
+while True:
+    status = forecast.describe_forecast(ForecastArn=forecast_arn)['Status']
+    status_indicator.update(status)
+    if status in ('ACTIVE', 'CREATE_FAILED'): break
+    time.sleep(10)
+
+status_indicator.end()
+
+
+
+
+
+
+print()
+forecast_response = forecast_query.query_forecast(
+    ForecastArn=forecast_arn,
+    Filters={"item_id":"21232"}
+)
+print(forecast_response)
+
+
+
+
+
+
+actual_df = pd.read_csv(test, names=['InvoiceDate','StockCode','Quantity'])
+actual_df['InvoiceDate'] = pd.to_datetime(actual_df.InvoiceDate)
+actual_df = actual_df.set_index('InvoiceDate')
+actual_df.head()
+
+
+
+stockcode_filter = ['21232']
+actual_df = actual_df[actual_df['StockCode'].isin(stockcode_filter)]
+
+
+actual_df.head()
+
+
+
+
+actual_df.Quantity.plot()
+
+
+# Generate DF 
+prediction_df_p10 = pd.DataFrame.from_dict(forecast_response['Forecast']['Predictions']['p10'])
+prediction_df_p10.head()
+
+
+
+# Plot
+prediction_df_p10.plot()
+
+
+
+prediction_df_p50 = pd.DataFrame.from_dict(forecast_response['Forecast']['Predictions']['p50'])
+prediction_df_p90 = pd.DataFrame.from_dict(forecast_response['Forecast']['Predictions']['p90'])
+
+
+
+#test and validation (or a similar function)
+
+# Start by creating a DataFrame to house the content. Here, Source will be which DataFrame it came from.
+results_df = pd.DataFrame(columns=['timestamp','value','Source'])
+
+results_df.head()
+
+import dateutil.parser
+for index, row in actual_df.iterrows():
+    #clean_timestamp = dateutil.parser.parse(index)
+    results_df = results_df.append({'timestamp' : index , 'value' : row['Quantity'], 'Source': 'Actual'} , ignore_index=True)
+    
+    
+    
+    # To show the new DataFrame
+results_df.head()
+
+
+# Now add the P10, P50, and P90 Values
+for index, row in prediction_df_p10.iterrows():
+    clean_timestamp = dateutil.parser.parse(row['Timestamp'])
+    results_df = results_df.append({'timestamp' : clean_timestamp , 'value' : row['Value'], 'Source': 'p10'} , ignore_index=True)
+for index, row in prediction_df_p50.iterrows():
+    clean_timestamp = dateutil.parser.parse(row['Timestamp'])
+    results_df = results_df.append({'timestamp' : clean_timestamp , 'value' : row['Value'], 'Source': 'p50'} , ignore_index=True)
+for index, row in prediction_df_p90.iterrows():
+    clean_timestamp = dateutil.parser.parse(row['Timestamp'])
+    results_df = results_df.append({'timestamp' : clean_timestamp , 'value' : row['Value'], 'Source': 'p90'} , ignore_index=True)
+    
+    
+    
+    
+pivot_df = results_df.pivot(columns='Source', values='value', index="timestamp")
+pivot_df
+
+
+
+pivot_df.plot(figsize=(20,10))
+
+
+
+### SAGEMAKER CLEANUP
+
+%store -r
+
+
+print(forecast_arn)
+
+
+forecast.delete_forecast(ForecastArn=forecast_arn)
+time.sleep(60)
+
+
+forecast.delete_predictor(PredictorArn=predictor_arn)
+time.sleep(60)
+
+
+forecast.delete_dataset_import_job(DatasetImportJobArn=ds_related_import_job_arn)
+
+
+forecast.delete_dataset_import_job(DatasetImportJobArn=ds_import_job_arn)
+
+time.sleep(60)
+
+
+forecast.delete_dataset(DatasetArn=related_dataset_arn)
+
+forecast.delete_dataset(DatasetArn=dataset_arn)
+
+time.sleep(60)
+
+
+forecast.delete_dataset_group(DatasetGroupArn=dataset_group_arn)
+
+
+
