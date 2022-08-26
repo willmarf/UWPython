@@ -1,0 +1,327 @@
+import pandas as pd
+import numpy as np
+
+
+from google.colab import files
+uploaded = files.upload() 
+## https://opendata.vancouver.ca/explore/dataset/parking-tickets-2017-2019/export/
+
+
+df = pd.read_csv('parking-tickets-2017-2019.csv', delimiter = ';')
+#the delimiter took me far too long to remember how to do
+
+df.head() 
+#looks good, some stuff to work with here, will need to feature engineer
+
+
+df.isnull().sum()
+#no null values, that's cool, no cleaning to be done really
+
+
+df.EntryDate.min()
+
+
+df.EntryDate.max()
+
+import datetime
+df['month'] = pd.DatetimeIndex(df['EntryDate']).month
+
+df.select_dtypes(include =['number'])
+
+df['Street'].value_counts()
+#lots of different streets, I recognize the ones at the top as some of the biggest and most popular downtown streets,
+#probably could stratify this data in some way
+
+df['Street'].value_counts()
+
+Streets.head(5)
+#hmm you see here that W 4th ave and 4th ave W are different streets.. .even though they're almost certainly the same street..
+
+Streets.head(5).sum()/df['Street'].count()
+# what % of citations are on the top 5 streets
+
+Streets.tail(123)
+#this is all the streets with exactly 1 ticket in 3 years
+
+
+
+df['Status'].value_counts()
+#Status of the parking ticket.
+#CA = One time courtesy cancellation (no longer exists), 
+#IS = Issued,
+#RA = Cancelled due to Paid by Phone, 
+#VA = Void, VR = Void request, 
+#VS = Auto-void, 
+#WR = Warning
+
+
+
+df['Status_y'] = np.where(df['Status'] =='IS', 1, 0)
+#create a binary variable for if the ticket went through 
+
+
+df['Warned_Dummy'] = np.where(df['Status'] =='WR', 1, 0)
+#just because warnings might be interesting
+
+
+
+
+df['Block'].value_counts()
+#block while useful in some cases, doesn't really mean anything for a lot of the city.
+#maybe the nieghborhood varaible might help with this, in general block shouldn't really mean anything, make sure not to include it (as it will negatively correlate as after a certain point block sizes do not exist) whichi is confirmed correlation 
+#where there should be only statistical noise
+
+
+
+df['InfractionText'].value_counts()
+#cool, 123 different inputs so it isn't just a checkbox on a form, there's some input... the frequency of the first few though,..
+
+df.select_dtypes(include =['number'])
+df.select_dtypes(include =['ojbect'])
+
+
+Warning =df[df['Warned_Dummy'] == 1]
+Ticketed=df[df['Status_y'] ==1]
+Warning['month'].value_counts()
+
+fourth_street_dummy = Ticketed[Ticketed['Street'] == 'W 4TH AVE']
+broadway_street_dummy =Ticketed[Ticketed['Street'] == 'W BROADWAY']
+
+fourth_street_dummy['Block'].value_counts()
+#hey I live prety close 
+broadway_street_dummy['Block'].value_counts()
+
+##NLP SECTION!!!!
+import nltk 
+nltk.download('stopwords')
+!python3 -m spacy download en_core_web_sm
+from nltk.corpus import stopwords
+
+# Helpful packages
+import re
+import numpy as np
+import pandas as pd
+from pprint import pprint
+
+# Gensim
+!pip uninstall gensim
+! pip install gensim==4.2.0
+import gensim
+import gensim.corpora as corpora
+from gensim.utils import simple_preprocess
+from gensim.models import CoherenceModel
+
+# spacy for lemmatization
+import spacy
+
+# Plotting tools
+!pip install pyLDAvis
+import pyLDAvis
+import pyLDAvis.gensim_models
+import matplotlib.pyplot as plt
+%matplotlib inline
+
+
+
+
+
+# Convert to list
+data = df['InfractionText'].values.tolist()
+
+# Remove Emails
+data = [re.sub(r'\S*@\S*\s?', '', sent) for sent in data]
+
+# Remove new line characters
+data = [re.sub(r'\s+', ' ', sent) for sent in data]
+
+# Remove distracting single quotes
+data = [re.sub(r"\'", "", sent) for sent in data]
+
+pprint(data[:1])
+
+
+def sent_to_words(sentences):
+    for sentence in sentences:
+        yield(gensim.utils.simple_preprocess(str(sentence), deacc=True))  # deacc=True removes punctuations
+
+data_words = list(sent_to_words(data))
+
+print(data_words[:1])
+-----------------------------------------------------------------------------------------------------------
+## this took a few hours and did not complete, so I aborted it at some point during lemmatization... 
+#I think skippable, but may not be
+
+
+# Build the bigram and trigram models
+bigram = gensim.models.Phrases(data_words, min_count=5, threshold=100) # higher threshold fewer phrases.
+#trigram = gensim.models.Phrases(bigram[data_words], threshold=100)  
+
+# Faster way to get a sentence clubbed as a trigram/bigram
+bigram_mod = gensim.models.phrases.Phraser(bigram)
+#trigram_mod = gensim.models.phrases.Phraser(trigram)
+
+# Define functions for stopwords, bigrams, trigrams and lemmatization
+def remove_stopwords(texts):
+    return [[word for word in simple_preprocess(str(doc)) if word not in stop_words] for doc in texts]
+
+def make_bigrams(texts):
+    return [bigram_mod[doc] for doc in texts]
+
+#def make_trigrams(texts):
+#    return [trigram_mod[bigram_mod[doc]] for doc in texts]
+
+def lemmatization(texts, allowed_postags=['NOUN', 'ADJ', 'VERB', 'ADV']):
+    """https://spacy.io/api/annotation"""
+    texts_out = []
+    for sent in texts:
+        doc = nlp(" ".join(sent)) 
+        texts_out.append([token.lemma_ for token in doc if token.pos_ in allowed_postags])
+    return texts_out
+
+------------------------------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+# Remove Stop Words
+#Define stop words
+stop_words = stopwords.words('english')
+stop_words.extend(['from', 'subject', 're', 'edu', 'use'])
+data_words_nostops = remove_stopwords(data_words)
+
+# Form Bigrams
+data_words_bigrams = make_bigrams(data_words_nostops)
+
+# Initialize spacy 'en' model, keeping only tagger component (for efficiency)
+nlp = spacy.load('en_core_web_sm', disable=['parser', 'ner'])
+
+# Do lemmatization keeping only noun, adj, vb, adv
+data_lemmatized = lemmatization(data_words_bigrams, allowed_postags=['NOUN', 'ADJ', 'VERB', 'ADV'])
+
+print(data_lemmatized[:1])
+
+
+
+
+
+# Create Dictionary
+id2word = corpora.Dictionary(data_lemmatized)
+
+# Create Corpus
+texts = data_lemmatized
+
+# Term Document Frequency
+corpus = [id2word.doc2bow(text) for text in texts]
+
+# View
+# Human readable format of corpus (term-frequency)
+[[(id2word[id], freq) for id, freq in cp] for cp in corpus[:1]]
+
+
+
+# Remove Stop Words
+#Define stop words
+stop_words = stopwords.words('english')
+stop_words.extend(['from', 'subject', 're', 'edu', 'use'])
+data_words_nostops = remove_stopwords(data_words)
+
+# Form Bigrams
+data_words_bigrams = make_bigrams(data_words_nostops)
+
+# Initialize spacy 'en' model, keeping only tagger component (for efficiency)
+nlp = spacy.load('en_core_web_sm', disable=['parser', 'ner'])
+
+# Do lemmatization keeping only noun, adj, vb, adv
+data_lemmatized = lemmatization(data_words_bigrams, allowed_postags=['NOUN', 'ADJ', 'VERB', 'ADV'])
+
+print(data_lemmatized[:1])
+
+
+
+
+
+
+
+
+
+# Create Dictionary
+id2word = corpora.Dictionary(data_lemmatized)
+
+# Create Corpus
+texts = data_lemmatized
+
+# Term Document Frequency
+corpus = [id2word.doc2bow(text) for text in texts]
+
+# View
+# Human readable format of corpus (term-frequency)
+[[(id2word[id], freq) for id, freq in cp] for cp in corpus[:1]]
+
+
+
+
+
+
+
+
+
+
+
+lda_model = gensim.models.ldamodel.LdaModel(corpus=corpus,
+                                           id2word=id2word,
+                                           num_topics=20, 
+                                           random_state=100,
+                                           update_every=1,
+                                           chunksize=100,
+                                           passes=10,
+                                           alpha='auto',
+                                           per_word_topics=True)
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+                                           
+pprint(lda_model.print_topics())
+doc_lda = lda_model[corpus]
+
+
+
+
+pyLDAvis.enable_notebook()
+vis = pyLDAvis.gensim_models.prepare(lda_model, corpus, id2word, mds='mmds')
+vis
+
+
+
+
+-------------------------------------------
+
+
+
+
+#Very cool output, observations of note:
+
+#56.3% of tokens are in Topic 1 (I believe that's 56% of tickets as well?)
+#and the Natural Language Processing says topic one is defined primarily be the term Meter! With some power to Park, Head, Space, Display, Parking, Window, Flash, Zero
+#I think zero and display probably refer to the time on the meter being 0. 
+#it seems to me the most common way to get a parking ticket, or at least to be documented by citation is to have your meter run out! Maybe this is a no brainer, 
+# but having the machine learning algorithm independently indentify and highlight the term METER as the most important word for the largest topic is cool
+ #topic 2 and 3 are between 8.5 and 9% each so I will touch on these briefly
+#2's top word in relevancy is portion, followed by time, and then park(notably doesn't have a huge share of the usage of the word park in data relevance)
+#followed by period, long, govern, indicate and pay 
+#this leads me to believe this topic is more focused on parking over the time limit where a meter was not the object responsible for keeping time, though this may just be speculation
+# 3 has only 5 words that command most of its topic relevancy Stop, Prohibit, Traffic, Place and Sign. 
+#I suspect this topic has more to do with parking in places that are not allowed, Prohibit and place seem to be no parking zones maybe.. of note as well Stop, Traffic and Sign have substantial
+#portions of their relevancy in other topics
+#topic 4- 14 are between 3.5% and 1% and topics after 14 have less than 1% of tokens in their grouping.
+# theres a lot of information here surely, some things I think are kind of amusing are:
+#that token 5 has most of the relevance for Sidewalk. which is a pretty bad park job. 
+#14 has Zone Loading and Commercical with pretty high incidence as the only words in its relevancy group. I think that paints a pretty vivid picture of that <1% of tokens
