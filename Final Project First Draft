@@ -1,5 +1,9 @@
 import pandas as pd
 import numpy as np
+import datetime
+import matplotlib.pyplot as plt
+import plotly.express as px
+
 
 
 from google.colab import files
@@ -13,18 +17,19 @@ df = pd.read_csv('parking-tickets-2017-2019.csv', delimiter = ';')
 df.head() 
 #looks good, some stuff to work with here, will need to feature engineer
 
-
 df.isnull().sum()
 #no null values, that's cool, no cleaning to be done really
 
-
 df.EntryDate.min()
-
-
 df.EntryDate.max()
-
-import datetime
+df.EntryDate.value_counts()
 df['month'] = pd.DatetimeIndex(df['EntryDate']).month
+df['year'] = d.DatetimeIndex(df['EntryDate']).year
+
+InputDates = df.EntryDate.value_counts()
+InputDates.head()
+
+
 
 df.select_dtypes(include =['number'])
 
@@ -32,13 +37,14 @@ df['Street'].value_counts()
 #lots of different streets, I recognize the ones at the top as some of the biggest and most popular downtown streets,
 #probably could stratify this data in some way
 
-df['Street'].value_counts()
+Street = df['Street'].value_counts()
 
 Streets.head(5)
 #hmm you see here that W 4th ave and 4th ave W are different streets.. .even though they're almost certainly the same street..
 
 Streets.head(5).sum()/df['Street'].count()
 # what % of citations are on the top 5 streets
+#--->.131
 
 Streets.tail(123)
 #this is all the streets with exactly 1 ticket in 3 years
@@ -60,7 +66,7 @@ df['Status_y'] = np.where(df['Status'] =='IS', 1, 0)
 #create a binary variable for if the ticket went through 
 
 
-df['Warned_Dummy'] = np.where(df['Status'] =='WR', 1, 0)
+df['Warned_y'] = np.where(df['Status'] =='WR', 1, 0)
 #just because warnings might be interesting
 
 
@@ -88,8 +94,27 @@ fourth_street_dummy = Ticketed[Ticketed['Street'] == 'W 4TH AVE']
 broadway_street_dummy =Ticketed[Ticketed['Street'] == 'W BROADWAY']
 
 fourth_street_dummy['Block'].value_counts()
-#hey I live prety close 
+#hey I live prety close to the most ticketed single block in Vancouver
 broadway_street_dummy['Block'].value_counts()
+#cool you could make a heatmap with this
+
+
+Warning['EntryDate'].value_counts()
+#2017-02-15 is the most warnings given for any entry date in the dataset
+#there was a very
+Warning[Warning['EntryDate']=='2017-02-15']['InfractionText'].value_counts()
+
+
+fig = px.histogram(Warning, x='EntryDate', y='Warned_Dummy')
+fig.show()
+
+#WAYY more warnings in the winter
+
+fig = px.histogram(Ticketed, x='EntryDate', y= 'Status_y')
+fig.show()
+
+#most notable trough is around December 24th 2017 which I guess is the christmas spirit. or cops are on holiday.
+
 
 ##NLP SECTION!!!!
 import nltk 
